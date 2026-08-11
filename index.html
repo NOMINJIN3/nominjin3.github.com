@@ -1,0 +1,486 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>nominjin@github ~ interactive terminal</title>
+<meta name="description" content="NOMINJIN3 — interactive terminal-style GitHub profile." />
+<style>
+  :root{
+    --bg:#0d1117; --bg2:#161b22; --frame:#30363d; --muted:#8b949e;
+    --green:#39d353; --green-dim:#146c37; --cyan:#58a6ff; --white:#e6edf3;
+    --red:#ff5f56; --yellow:#ffbd2e; --pink:#f778ba;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--white);
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;}
+  body{min-height:100vh;display:flex;flex-direction:column;align-items:center;
+    padding:24px 14px 60px;}
+  a{color:var(--cyan);text-decoration:none;}
+  a:hover{text-decoration:underline;}
+
+  .wrap{width:100%;max-width:900px;}
+
+  .hero{text-align:center;margin-bottom:22px;}
+  .hero pre{font-size:clamp(6px,1.6vw,13px);line-height:1.15;color:#58a6ff;
+    margin:0 0 6px;white-space:pre;overflow-x:auto;}
+  .hero .tagline{color:var(--muted);font-size:14px;}
+  .hero img{width:min(260px,60vw);border-radius:10px;border:1px solid var(--frame);margin-top:14px;}
+
+  .window{background:var(--bg);border:1px solid var(--frame);border-radius:10px;
+    overflow:hidden;box-shadow:0 20px 60px -20px rgba(0,0,0,.6);}
+  .titlebar{display:flex;align-items:center;gap:8px;padding:9px 14px;
+    background:var(--bg2);border-bottom:1px solid var(--frame);position:relative;}
+  .dot{width:11px;height:11px;border-radius:50%;}
+  .titlebar .label{position:absolute;left:0;right:0;text-align:center;color:var(--muted);font-size:12px;}
+
+  .term{padding:16px;min-height:360px;max-height:60vh;overflow-y:auto;font-size:13.5px;line-height:1.55;}
+  .term .line{white-space:pre-wrap;word-break:break-word;}
+  .term .prompt-line{display:flex;gap:8px;}
+  .term .prompt-tag{color:#58a6ff;flex-shrink:0;}
+  .out-cmd{color:var(--cyan);}
+  .out-dim{color:var(--muted);}
+  .out-green{color:var(--green);}
+  .out-white{color:var(--white);}
+  .out-yellow{color:var(--yellow);}
+  .out-cyan{color:#58a6ff;}
+
+  .inputRow{display:flex;gap:8px;align-items:center;padding:0 16px 16px;}
+  .inputRow .prompt-tag{color:#58a6ff;}
+  #cmdInput{flex:1;background:transparent;border:none;outline:none;color:var(--white);
+    font-family:inherit;font-size:13.5px;caret-color:#58a6ff;}
+  .cursor{display:inline-block;width:8px;height:15px;background:#58a6ff;
+    animation:blink 1s steps(1) infinite;vertical-align:middle;}
+  @keyframes blink{50%{opacity:0;}}
+
+  .hint{text-align:center;color:var(--muted);font-size:12px;margin-top:10px;}
+  .hint kbd{background:var(--bg2);border:1px solid var(--frame);border-radius:4px;
+    padding:1px 6px;color:var(--white);}
+
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+    gap:10px;margin:18px 0;}
+  .stat{border:1px solid var(--frame);border-radius:8px;padding:12px;background:var(--bg2);}
+  .stat .num{font-size:22px;color:#58a6ff;font-weight:600;}
+  .stat .lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-top:2px;}
+
+  .heatmap-wrap{overflow-x:auto;padding:4px 0;}
+  .heatmap{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,10px);gap:2px;}
+  .cell{width:10px;height:10px;border-radius:2px;cursor:pointer;transition:transform .08s;}
+  .cell:hover{transform:scale(1.6);outline:1px solid var(--white);}
+  .legend{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);margin-top:8px;}
+  .legend .cell{cursor:default;}
+  .legend .cell:hover{transform:none;outline:none;}
+  #tooltip{position:fixed;pointer-events:none;background:#1c2128;border:1px solid var(--frame);
+    color:var(--white);font-size:11.5px;padding:4px 8px;border-radius:6px;display:none;z-index:50;
+    box-shadow:0 8px 20px rgba(0,0,0,.5);}
+
+  footer{margin-top:26px;text-align:center;color:var(--muted);font-size:12px;}
+  footer .links{margin-bottom:8px;}
+  footer .links a{margin:0 8px; color:var(--pink);}
+  footer .links a:hover{color:#ff9ec8;}
+
+  @media (max-width:520px){
+    .term{font-size:12.5px;}
+    .hero pre{font-size:6px;}
+  }
+</style>
+<base target="_blank">
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="hero">
+    <pre id="bannerArt"></pre>
+    <div class="tagline">Information Technology Student · Agentic Tools Developer · Cyber Security</div>
+  </div>
+
+  <div class="window">
+    <div class="titlebar">
+      <div class="dot" style="background:var(--red)"></div>
+      <div class="dot" style="background:var(--yellow)"></div>
+      <div class="dot" style="background:#27c93f"></div>
+      <div class="label">nominjin@github: ~</div>
+    </div>
+    <div class="term" id="term"></div>
+    <div class="inputRow">
+      <span class="prompt-tag">nominjin@github:~$</span>
+      <input id="cmdInput" autocomplete="off" autocapitalize="off" spellcheck="false" />
+      <span class="cursor" id="fakeCursor"></span>
+    </div>
+  </div>
+
+  <div class="hint">type <kbd>help</kbd> to see commands · try <kbd>contributions</kbd>, <kbd>projects</kbd>, or <kbd>matrix</kbd></div>
+
+  <footer>
+    <div class="links">
+      <a href="https://www.nominjin.io" target="_blank" rel="noopener">portfolio</a>·
+      <a href="https://github.com/NOMINJIN3" target="_blank" rel="noopener">github</a>·
+      <a href="https://linkedin.com/in/nominjin" target="_blank" rel="noopener">linkedin</a>·
+      <a href="mailto:ts.nominjin2006@gmail.com">email</a>
+    </div>
+    <div>rendered client-side, no build step · data refreshes daily</div>
+  </footer>
+
+</div>
+
+<div id="tooltip"></div>
+<canvas id="matrixCanvas" style="position:fixed;inset:0;z-index:-1;display:none;"></canvas>
+
+<script>
+/* =========================================================================
+   Live data from NOMINJIN3's GitHub repo
+   ========================================================================= */
+
+window.__FALLBACK_DATA = {}   
+const LIVE_DATA_URL = "https://raw.githubusercontent.com/NOMINJIN3/NOMINJIN3/main/data/contributions.json";
+
+const BANNER = `    ___ _    ______   _    _____   _____ __  ___________ __  ___________
+   /   | |  / /  _/  | |  / /   | / ___// / / /  _/ ___// / / /_  __/   |
+  / /| | | / // /    | | / / /| | \__ \/ /_/ // / \__ \/ /_/ / / / / /| |
+ / ___ | |/ // /     | |/ / ___ |___/ / __  // / ___/ / __  / / / / ___ |
+/_/  |_|___/___/     |___/_/  |_/____/_/ /_/___//____/_/ /_/ /_/ /_/  |_|`;
+document.getElementById("bannerArt").textContent = BANNER;
+
+/* ---------------------------------------------------------------------- */
+const term = document.getElementById("term");
+const input = document.getElementById("cmdInput");
+const tooltip = document.getElementById("tooltip");
+
+function line(html, cls) {
+  const div = document.createElement("div");
+  div.className = "line" + (cls ? " " + cls : "");
+  div.innerHTML = html;
+  term.appendChild(div);
+  term.scrollTop = term.scrollHeight;
+  return div;
+}
+function blank() { line("&nbsp;"); }
+
+let DATA = null;
+window.__getData = () => DATA;
+
+async function loadData() {
+  try {
+    const res = await fetch(LIVE_DATA_URL, { cache: "no-store" });
+    if (!res.ok) throw new Error("bad status " + res.status);
+    DATA = await res.json();
+  } catch (e) {
+    line(`<span class="out-dim">failed to load live data: ${e.message}</span>`);
+    return;
+  }
+  renderStats();
+}
+
+/* ---------------------------------------------------------------------- */
+function countUp(el, target, suffix) {
+  const dur = 900;
+  const start = performance.now();
+  function tick(now) {
+    const p = Math.min(1, (now - start) / dur);
+    const val = Math.round(target * (1 - Math.pow(1 - p, 3)));
+    el.textContent = val.toLocaleString() + (suffix || "");
+    if (p < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+function renderStats() {
+  if (!DATA) return;
+  const box = document.getElementById("statsBox");
+  if (!box) return;
+
+  const total = parseInt(DATA.total) || 0;
+  const activeCells = (DATA.cells || []).filter(c => c.level > 0);
+  const activeDays = activeCells.length;
+
+  // Compute streaks from dates
+  const dates = (DATA.cells || []).map(c => c.date).sort();
+  let currentStreak = 0, longestStreak = 0, tempStreak = 0;
+  let prev = null;
+  for (const d of dates) {
+    const cell = DATA.cells.find(c => c.date === d);
+    if (cell && cell.level > 0) {
+      if (prev && dayDiff(prev, d) === 1) {
+        tempStreak++;
+      } else {
+        tempStreak = 1;
+      }
+      currentStreak = tempStreak;
+      longestStreak = Math.max(longestStreak, tempStreak);
+    }
+    prev = d;
+  }
+  // Current streak from today backward
+  const today = new Date().toISOString().slice(0,10);
+  currentStreak = 0;
+  for (let i = dates.length - 1; i >= 0; i--) {
+    const cell = DATA.cells.find(c => c.date === dates[i]);
+    if (cell && cell.level > 0) {
+      if (i === dates.length - 1 || dayDiff(dates[i], dates[i+1]) === 1) {
+        currentStreak++;
+      } else break;
+    } else if (i === dates.length - 1) {
+      continue;
+    } else break;
+  }
+
+  const stats = [
+    ["total", total, "contributions"],
+    ["active", activeDays, "active days"],
+    ["current", currentStreak, "day streak"],
+    ["longest", longestStreak, "day best streak"],
+  ];
+  box.innerHTML = "";
+  stats.forEach(([key, val, label]) => {
+    const card = document.createElement("div");
+    card.className = "stat";
+    card.innerHTML = `<div class="num" data-key="${key}">0</div><div class="lbl">${label}</div>`;
+    box.appendChild(card);
+    countUp(card.querySelector(".num"), val);
+  });
+}
+
+function dayDiff(a, b) {
+  const ms = new Date(b) - new Date(a);
+  return Math.round(ms / 86400000);
+}
+
+/* ---------------------------------------------------------------------- */
+const PALETTE = ["#1c2128", "#0e2a47", "#1a4b8c", "#2d7dd2", "#58a6ff", "#a5d6ff"];
+
+function buildHeatmapEl() {
+  const wrap = document.createElement("div");
+  wrap.className = "heatmap-wrap";
+  const grid = document.createElement("div");
+  grid.className = "heatmap";
+
+  const cells = DATA.cells || [];
+  if (cells.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "line";
+    empty.innerHTML = `<span class="out-dim">no contribution data available</span>`;
+    wrap.appendChild(empty);
+    return wrap;
+  }
+
+  // Build grid from row/col data
+  const maxCol = Math.max(...cells.map(c => c.col));
+  for (let col = 0; col <= maxCol; col++) {
+    for (let row = 0; row < 7; row++) {
+      const cell = cells.find(c => c.col === col && c.row === row);
+      const div = document.createElement("div");
+      div.className = "cell";
+      if (!cell) {
+        div.style.background = "transparent";
+        div.style.cursor = "default";
+      } else {
+        const lvl = cell.level;
+        div.style.background = PALETTE[lvl] || PALETTE[0];
+        div.addEventListener("mousemove", (e) => {
+          tooltip.style.display = "block";
+          tooltip.style.left = e.clientX + 14 + "px";
+          tooltip.style.top = e.clientY + 14 + "px";
+          tooltip.textContent = `${cell.date}: level ${cell.level}`;
+        });
+        div.addEventListener("mouseleave", () => { tooltip.style.display = "none"; });
+      }
+      grid.appendChild(div);
+    }
+  }
+
+  wrap.appendChild(grid);
+
+  const legend = document.createElement("div");
+  legend.className = "legend";
+  legend.innerHTML = "less ";
+  PALETTE.forEach((c) => {
+    legend.innerHTML += `<span class="cell" style="background:${c}"></span> `;
+  });
+  legend.innerHTML += " more";
+  wrap.appendChild(legend);
+
+  return wrap;
+}
+
+/* ---------------------------------------------------------------------- */
+const COMMANDS = {
+  help() {
+    line(`<span class="out-white">available commands:</span>`);
+    [
+      ["whoami", "who is this person"],
+      ["experience", "work history"],
+      ["skills", "tech stack"],
+      ["projects", "things shipped"],
+      ["contributions", "live GitHub contribution heatmap"],
+      ["streak", "current / longest streak"],
+      ["contact", "how to reach me"],
+      ["photo", "animated ascii self-portrait"],
+      ["matrix", "toggle a little fun"],
+      ["clear", "clear the terminal"],
+    ].forEach(([c, d]) => line(`  <span class="out-cmd">${c.padEnd(15)}</span><span class="out-dim">${d}</span>`));
+  },
+  whoami() {
+    line(`<span class="out-white">20yo Information Technology engineer</span>`);
+    line(`<span class="out-dim">Currently: 3rd Yr IT, MUST-SICT</span>`);
+    line(`<span class="out-dim">Intern: @ erxes Mongolia</span>`);
+    line(`<span class="out-dim">Focus: Agentic Tools, Cybersecurity</span>`);
+  },
+  experience() {
+    line(`<span class="out-dim">no experience entries yet — edit the COMMANDS.experience array to add your roles.</span>`);
+  },
+  skills() {
+    line(`<span class="out-cmd">frontend</span>  React, Next.js, TypeScript, Tailwind`);
+    line(`<span class="out-cmd">backend </span>  Node.js, Python, PostgreSQL`);
+    line(`<span class="out-cmd">devops  </span>  Docker, GitHub Actions, Vercel`);
+  },
+  projects() {
+    [
+      ["Portfolio v1", "React 19 + Three.js + MediaPipe — gesture & head-tracking UI", "https://www.nominjin.io"], ] 
+    .forEach(([n, d, url]) => {
+      line(`<span class="out-cmd">&gt; ${n}</span>`);
+      line(`  <span class="out-dim">${d}</span>`);
+      line(`  <a href="${url}" target="_blank" rel="noopener">${url}</a>`);
+    });},
+  photo() {
+    const img = document.createElement("img");
+    img.src = "https://github.com/NOMINJIN3/NOMINJIN3/blob/main/nominjin-ascii.svg";
+    img.style.maxWidth = "100%";
+    img.style.borderRadius = "8px";
+    img.style.border = "1px solid var(--frame)";
+    img.alt = "animated ascii self-portrait";
+    const div = document.createElement("div");
+    div.className = "line";
+    div.appendChild(img);
+    term.appendChild(div);
+    term.scrollTop = term.scrollHeight;
+  },
+  contact() {
+    line(`<span class="out-white">portfolio</span>  <a href="https://www.nominjin.io" target="_blank">nominjin.io</a>`);
+    line(`<span class="out-white">linkedin </span>  <a href="https://linkedin.com/in/nominjin" target="_blank">linkedin.com/in/nominjin</a>`);
+    line(`<span class="out-white">github   </span>  <a href="https://github.com/NOMINJIN3" target="_blank">github.com/NOMINJIN3</a>`);
+    line(`<span class="out-white">email    </span>  <a href="mailto:ts.nominjin2006@gmail.com">ts.nominjin2006@gmail.com</a>`);
+  },
+  streak() {
+    if (!DATA) { line(`<span class="out-dim">loading contribution data...</span>`); return; }
+    const total = parseInt(DATA.total) || 0;
+    const activeCells = (DATA.cells || []).filter(c => c.level > 0);
+    line(`<span class="out-cyan">total contributions:</span>  ${total}`);
+    line(`<span class="out-cyan">active days:</span>          ${activeCells.length}`);
+  },
+  contributions() {
+    if (!DATA) { line(`<span class="out-dim">loading contribution data...</span>`); return; }
+    const total = parseInt(DATA.total) || 0;
+    line(`<span class="out-dim">${total.toLocaleString()} contributions</span>`);
+    const div = document.createElement("div");
+    div.className = "line";
+    div.appendChild(buildHeatmapEl());
+    term.appendChild(div);
+    term.scrollTop = term.scrollHeight;
+    line(`<span class="out-dim">hover a cell for the exact date</span>`);
+  },
+  matrix() {
+    toggleMatrix();
+    line(`<span class="out-dim">${matrixOn ? "matrix mode on -- type 'matrix' again to turn it off" : "back to normal"}</span>`);
+  },
+  clear() {
+    term.innerHTML = "";
+  },
+  banner() {
+    line(`<pre style="color:#58a6ff;margin:0;font-size:9px;">${BANNER}</pre>`);
+  },
+  sudo(args) {
+    line(`<span class="out-yellow">[sudo] password for nominjin:</span> <span class="out-dim">nice try. this is a static site.</span>`);
+  },
+};
+COMMANDS["about"] = COMMANDS.whoami;
+COMMANDS["ls"] = COMMANDS.projects;
+
+function runCommand(raw) {
+  const trimmed = raw.trim();
+  line(`<span class="prompt-tag">nominjin@github:~$</span> <span class="out-white">${escapeHtml(trimmed)}</span>`, "prompt-line");
+  if (!trimmed) return;
+  const [cmd, ...args] = trimmed.split(/\s+/);
+  const key = cmd.toLowerCase();
+  if (key === "open") {
+    const target = (args[0] || "").toLowerCase();
+    const map = {
+      portfolio: "https://www.nominjin.io",
+      linkedin: "https://linkedin.com/in/nominjin",
+      github: "https://github.com/NOMINJIN3",
+    };
+    if (map[target]) { line(`<span class="out-dim">opening ${target}...</span>`); window.open(map[target], "_blank"); }
+    else line(`<span class="out-dim">usage: open [portfolio|linkedin|github]</span>`);
+    return;
+  }
+  if (COMMANDS[key]) { COMMANDS[key](args); }
+  else line(`<span class="out-dim">command not found: ${escapeHtml(cmd)} — type 'help'</span>`);
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+input.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    const val = input.value;
+    input.value = "";
+    runCommand(val);
+  }
+});
+document.addEventListener("click", () => input.focus());
+
+/* ---------------------------------------------------------------------- */
+let matrixOn = false;
+function toggleMatrix() {
+  matrixOn = !matrixOn;
+  const canvas = document.getElementById("matrixCanvas");
+  canvas.style.display = matrixOn ? "block" : "none";
+  if (matrixOn) startMatrix();
+}
+function startMatrix() {
+  const canvas = document.getElementById("matrixCanvas");
+  const ctx = canvas.getContext && canvas.getContext("2d");
+  if (!ctx) return;
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const cols = Math.floor(canvas.width / 14);
+  const drops = new Array(cols).fill(0);
+  const chars = "01アビヴァシシュタ<>/{}[]#*";
+  function draw() {
+    if (!matrixOn) return;
+    ctx.fillStyle = "rgba(13,17,23,0.12)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#58a6ff";
+    ctx.font = "13px monospace";
+    drops.forEach((y, i) => {
+      const ch = chars[Math.floor(Math.random() * chars.length)];
+      ctx.fillText(ch, i * 14, y * 14);
+      drops[i] = y * 14 > canvas.height && Math.random() > 0.975 ? 0 : y + 1;
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+}
+
+/* ---------------------------------------------------------------------- */
+function boot() {
+  line(`<span style="color:#58a6ff">connected to github.com/NOMINJIN3</span>`);
+  line(`<span class="out-dim">type 'help' to see available commands</span>`);
+  blank();
+
+  const statsWrap = document.createElement("div");
+  statsWrap.className = "line";
+  statsWrap.innerHTML = `<div class="stats" id="statsBox"></div>`;
+  term.appendChild(statsWrap);
+
+  blank();
+  runCommand("whoami");
+  input.focus();
+}
+
+loadData();
+boot();
+</script>
+</body>
+</html>
